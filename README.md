@@ -64,19 +64,19 @@ Here's roughly what it looks like:
 
 General book output view:
 
-![Image showing a couple of books with simple cover art and details, its Aubrey Wood's Bang Bang Bodhisattva first, then Becky Chambers A closed and Common Orbit. The authors and tags for each book are clickable links to search for more](/../screenshots/Screenshot 2025-04-10 at 23-28-31 Shoddy Bookshelf All Books.png?raw=true)
+![Image showing a couple of books with simple cover art and details, its Aubrey Wood's Bang Bang Bodhisattva first, then Becky Chambers A closed and Common Orbit. The authors and tags for each book are clickable links to search for more](https://github.com/twitchy-ears/shoddy-bookshelf/blob/e6478d5ea35430dd1b11f99a5038f2e757bb2dc9/Screenshot%202025-04-10%20at%2023-28-31%20Shoddy%20Bookshelf%20All%20Books.png?raw=true)
 
 Searching for specific books by tag:
 
-![Text at top reads "Searching books for 'Science Fiction' followed by a couple of books in the same format as above](/../screenshots/Screenshot 2025-04-10 at 23-29-07 Shoddy Bookshelf Search Science Fiction.png?raw=true)
+![Text at top reads "Searching books for 'Science Fiction' followed by a couple of books in the same format as above](https://github.com/twitchy-ears/shoddy-bookshelf/blob/e6478d5ea35430dd1b11f99a5038f2e757bb2dc9/Screenshot%202025-04-10%20at%2023-29-07%20Shoddy%20Bookshelf%20Search%20Science%20Fiction.png?raw=true)
 
 Dumping out all the tags:
 
-![A list of links to various book tags, each has "Tag:" prefixing it and a count of how many books match that tag in brackets afterwards](/../screenshots/Screenshot 2025-04-10 at 23-29-58 Shoddy Bookshelf Showing all tags.png?raw=true)
+![A list of links to various book tags, each has "Tag:" prefixing it and a count of how many books match that tag in brackets afterwards](https://github.com/twitchy-ears/shoddy-bookshelf/blob/e6478d5ea35430dd1b11f99a5038f2e757bb2dc9/Screenshot%202025-04-10%20at%2023-29-58%20Shoddy%20Bookshelf%20Showing%20all%20tags.png?raw=true)
 
 Dumping out all the authors:
 
-![A list of links to various authoirs prefixed by "Author:" and a count in brackets of how many matches for each afterwards](/../screenshots/Screenshot 2025-04-10 at 23-30-56 Shoddy Bookshelf Showing all authors.png?raw=true) 
+![A list of links to various authoirs prefixed by "Author:" and a count in brackets of how many matches for each afterwards](https://github.com/twitchy-ears/shoddy-bookshelf/blob/e6478d5ea35430dd1b11f99a5038f2e757bb2dc9/Screenshot%202025-04-10%20at%2023-30-56%20Shoddy%20Bookshelf%20Showing%20all%20authors.png?raw=true) 
 
 
 ## BUGS?
