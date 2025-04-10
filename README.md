@@ -27,7 +27,7 @@ into place.
 
 4. Edit `.htaccess` to give the full path to your `.htpasswd` file for the `AuthUserFile` directive.
 
-5. Make sure the `html` is writable by your webserver, so something like `chown www-data:www-data html`
+5. Make sure the `html` directory is writable by your webserver, so something like `chown www-data:www-data html`
 
 6. Make your `books` directory is looking at a `Calibre Library` directory, symlinking to one is acceptable, the webserver needs to be able to read the files but shouldn't be able to write them.
 
@@ -72,7 +72,7 @@ Searching for specific books by tag:
 
 Dumping out all the tags:
 
-![A list of links to various book tags, each has "Tag:" prefixing it and a count of how many books match that tag in brackets afterwards](https://github.com/twitchy-ears/shoddy-bookshelf/blob/e6478d5ea35430dd1b11f99a5038f2e757bb2dc9/Screenshot%202025-04-10%20at%2023-29-58%20Shoddy%20Bookshelf%20Showing%20all%20tags.png?raw=true)
+![A list of links to various book tags, each has "Tag:" prefixing it and a count of how many books match that tag in brackets afterwards](https://github.com/twitchy-ears/shoddy-bookshelf/blob/20e098e7590600dc4933dda0f9e99a090c5cab4c/Screenshot%202025-04-10%20at%2023-29-58%20Shoddy%20Bookshelf%20Showing%20all%20tags.png?raw=true)
 
 Dumping out all the authors:
 
