@@ -58,6 +58,27 @@ keep reading the old copy." and a link to "Refresh book for online
 reading", clicking this will essentially delete the HTML file and
 regenerate it, so again may take a little while.
 
+## Screenshots
+
+Here's roughly what it looks like:
+
+General book output view:
+
+![Image showing a couple of books with simple cover art and details, its Aubrey Wood's Bang Bang Bodhisattva first, then Becky Chambers A closed and Common Orbit. The authors and tags for each book are clickable links to search for more](/../screenshots/Screenshot 2025-04-10 at 23-28-31 Shoddy Bookshelf All Books.png?raw=true)
+
+Searching for specific books by tag:
+
+![Text at top reads "Searching books for 'Science Fiction' followed by a couple of books in the same format as above](/../screenshots/Screenshot 2025-04-10 at 23-29-07 Shoddy Bookshelf Search Science Fiction.png?raw=true)
+
+Dumping out all the tags:
+
+![A list of links to various book tags, each has "Tag:" prefixing it and a count of how many books match that tag in brackets afterwards](/../screenshots/Screenshot 2025-04-10 at 23-29-58 Shoddy Bookshelf Showing all tags.png?raw=true)
+
+Dumping out all the authors:
+
+![A list of links to various authoirs prefixed by "Author:" and a count in brackets of how many matches for each afterwards](/../screenshots/Screenshot 2025-04-10 at 23-30-56 Shoddy Bookshelf Showing all authors.png?raw=true) 
+
+
 ## BUGS?
 
 Almost certainly absolutely a million and some dreadful security
