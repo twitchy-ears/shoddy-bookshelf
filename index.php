@@ -679,8 +679,8 @@ elseif (strlen($search) > 0) {
 
   elseif (isset($order) && $order == "author") {
     $sorter = function($a, $b) {
-      $ad = strtotime($a["meta"]["author_sort"]);
-      $bd = strtotime($b["meta"]["author_sort"]);
+      $ad = $a["meta"]["author_sort"];
+      $bd = $b["meta"]["author_sort"];
       return strcmp($ad, $bd);
     };
 
@@ -704,8 +704,10 @@ elseif (strlen($search) > 0) {
     print "<table><tr>";
     
     $cover_file = get_cover_from_metadata($file);
-    if (isset($cover_file) && file_exists($cover_file) && ! preg_match('/#/', $cover_file)) {
-      print "<td style=\"vertical-align: top;\"><img src=\"$cover_file\" width=\"100px\" height=\"150px\" /></td>";
+    # if (isset($cover_file) && file_exists($cover_file) && ! preg_match('/#/', $cover_file)) {
+    if (isset($cover_file) && file_exists($cover_file)) {
+      $ent = htmlentities($cover_file);
+      print "<td style=\"vertical-align: top;\"><img src=\"$ent\" width=\"100px\" height=\"150px\" /></td>";
     }
     
     # Output results
