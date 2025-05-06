@@ -16,6 +16,8 @@ $pdo = NULL;
 $output_dir = "html";
 $pandoc_bin = "/usr/bin/pandoc";
 
+$forbidden_bookdir_pattern = '/#/';
+
 # Should include an ignore_filters array of /foo/ patterns which are
 # tested against metadata but not tags.
 $filter_file = "filter.php";
@@ -66,9 +68,30 @@ function get_cover_from_metadata($target) {
   }
 }
 
+function bookdir_to_symlink_dir($target) {
+  global $forbidden_bookdir_pattern;
+  global $output_dir;
+  
+  if (preg_match($forbidden_bookdir_pattern, $target)) {
+    $flat_str = preg_replace('/[^a-z0-9_]/i', '', $target);
+    $link_path = '../' . $target;
+    $new_path = $output_dir . '/' . $flat_str;
+
+    return array($link_path, $new_path);
+  }
+
+  return NULL;
+}
 
 # Searches the books/ directory and returns an array of metadata.opf files
+#
+# If any directory contains # (or in future other naughty characters)
+# it'll symlink that directory into HTML and return that.
+
 function generate_metadata_file_list($target) {
+  global $output_dir;
+  global $forbidden_bookdir_pattern;
+  
   $metadata_files = array();
 
   if (! is_dir($target)) {
@@ -88,11 +111,25 @@ function generate_metadata_file_list($target) {
       while ($bookdir = readdir($author_dh)) {
 	      if (! preg_match('/^\./', $bookdir) && is_dir($author_dirpath)) {
 	        $book_dirpath = $author_dirpath . '/' . $bookdir;
+          
+          # Fix for paths with # and similar crap in
+          $symdata = bookdir_to_symlink_dir($book_dirpath);
+          if (is_array($symdata)) {
+            # print "Using symdata<br />";
+            # print "<pre>";
+            # print_r($symdata);
+            # print "</pre>";
+            
+            if (! is_link($new_path)) {
+              symlink($symdata[0], $symdata[1]);
+            }
+            $book_dirpath = $symdata[1];
+          }
 
 	        # Look up if we have a metadata file for each book
 	        $meta_path = $book_dirpath . '/' . "metadata.opf";
 	        if (file_exists($meta_path)) {
-	          # print "Considering '$meta_path'<br />\n";
+	          # print "Adding metadata file '$meta_path'<br />\n";
 	          $metadata_files[$meta_path] = 1;
 	        }
 
@@ -157,7 +194,14 @@ function book_id_to_dir($id) {
   while ($row = $statement->fetch(\PDO::FETCH_ASSOC)) {
     if (isset($row["path"])) {
       $path = $library_dir . '/' . $row["path"];
-      if (is_dir($path)) {
+      
+      # Check for times we have to symlink to dodge badly named directories
+      $symdata = bookdir_to_symlink_dir($path);
+      if (is_array($symdata)) {
+        $path = $symdata[1];
+      }
+      
+      if (is_dir($path) || is_link($path)) {
         return $path;
       }
     }
@@ -219,8 +263,8 @@ function book_db_all_meta() {
 # Looks in a target directory $dir to build a list of possible likely
 # book files, then tries to return a epub if possible
 function find_books_in_dir ($dir, $first = TRUE) {
-  if (! is_dir($dir)) {
-    # print "Not a dir '$dir'<br />";
+  if (! is_dir($dir) && ! is_link($dir)) {
+    print "Not a dir '$dir'<br />";
     return FALSE;
   }
 
@@ -378,7 +422,9 @@ print "<html><head><title>Shoddy Bookshelf $title_suffix</title></head><body>";
 if (strlen($convert_book) > 0) {
   $id = $convert_book;
   $book_dir = book_id_to_dir($id);
+  # print "Bookdir: '$book_dir'<br />";
   $book_source = find_books_in_dir($book_dir, TRUE);
+  # print "book_source: '$book_source'<br />";
   $bookfile = generate_book($book_source);
   if (file_exists($bookfile)) {
     print "<br /><br />\nRead: <a href=\"$bookfile\">$bookfile</a><br /><br />\n";
