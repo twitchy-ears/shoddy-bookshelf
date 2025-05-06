@@ -1,7 +1,7 @@
 # shoddy-bookshelf
 PHP page to make Calibre's Library trivially viewable online
 
-This is a very small and very simple project, it should require just a basic PHP install and access to the [pandoc](https://pandoc.org/) binary.
+This is a very small and very simple project, it should require just a basic PHP install and access to the [pandoc](https://pandoc.org/) binary, as well as the PHP SQLite libraries.
 
 I wanted to be able to easily view and read my Calibre Library online
 in the event I just had my phone with me and not an ebook reader, or
@@ -13,9 +13,9 @@ docker containers for them.
 
 This was unacceptably heavy and also felt like work, so instead I did
 a bit of fiddling around with pandoc to work out a good way of
-converting an epub to HTML and wrote about 600 lines of shoddy PHP for
+converting an epub to HTML and wrote about ~~600~~ 849 lines of shoddy PHP for
 fun to make something that was good enough and you could just drop
-into place.
+into place mostly.
 
 ## How to install
 
@@ -43,7 +43,7 @@ Just visit the page, you should see a "Search metadata" box, if you type somethi
 
 There should also be buttons for "List all tags", "List all authors", and "List all books".
 
-When you do any of these options that finds at least one book you'll be rewarded with a very messy HTML page that lists the details of said books (authors, titles, descriptions, tags) and offers any files that are in the Calibre library for download.
+When you do any of these options that finds at least one book you'll be rewarded with a very messy HTML page that lists the details of said books (authors, titles, descriptions, tags) and offers any files that are in the Calibre library for download.  These results can be sorted by publication date, DB entry modification date, title, or author.
 
 If there are PDF files you can just click and read them, if there are
 epub files (recommended) then there will be a button for "Convert book
@@ -52,7 +52,7 @@ epub file into an HTML file, which can then be read in a long downward
 scroll as a single large HTML file.  Be patient, this can take a
 little while to complete.
 
-If the epub file has been updated and is newer than the converted HTMl
+If the epub file has been updated and is newer than the converted HTML
 file you'll see "Book file has been updated, click to refresh it, or
 keep reading the old copy." and a link to "Refresh book for online
 reading", clicking this will essentially delete the HTML file and
@@ -76,7 +76,7 @@ Dumping out all the tags:
 
 Dumping out all the authors:
 
-![A list of links to various authoirs prefixed by "Author:" and a count in brackets of how many matches for each afterwards](https://github.com/twitchy-ears/shoddy-bookshelf/blob/e6478d5ea35430dd1b11f99a5038f2e757bb2dc9/Screenshot%202025-04-10%20at%2023-30-56%20Shoddy%20Bookshelf%20Showing%20all%20authors.png?raw=true) 
+![A list of links to various authors prefixed by "Author:" and a count in brackets of how many matches for each afterwards](https://github.com/twitchy-ears/shoddy-bookshelf/blob/e6478d5ea35430dd1b11f99a5038f2e757bb2dc9/Screenshot%202025-04-10%20at%2023-30-56%20Shoddy%20Bookshelf%20Showing%20all%20authors.png?raw=true) 
 
 
 ## BUGS?

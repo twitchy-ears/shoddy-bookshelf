@@ -149,7 +149,7 @@ function book_id_to_dir($id) {
 
   $pdo = connect_to_db();
 
-  $statement = $pdo->prepare('select * from books where id = :id;');
+  $statement = $pdo->prepare('SELECT * FROM books WHERE id = :id;');
   $statement->bindValue(":id", $id);
   $book_data = $statement->execute();
 
@@ -164,6 +164,56 @@ function book_id_to_dir($id) {
   }
 
   return $path;
+}
+
+function book_id_to_db_meta($id) {
+  global $calibre_db;
+
+  $pdo = connect_to_db();
+
+  $statement = $pdo->prepare('SELECT * FROM books WHERE id = :id LIMIT 1;');
+  $statement->bindValue(":id", $id);
+  $book_data = $statement->execute();
+
+  $data = NULL;
+  if ($book_data) {
+    while ($row = $statement->fetch(\PDO::FETCH_ASSOC)) {
+      foreach ($row as $key => $value) {
+	      if ($data == NULL)
+	        $data = array();
+        
+	      $data[$key] = $value;
+      }
+    }
+  }
+  
+  return $data;
+}
+
+function book_db_all_meta() {
+  global $calibre_db;
+
+  $pdo = connect_to_db();
+
+  $statement = $pdo->prepare('SELECT * FROM books');
+  $book_data = $statement->execute();
+
+  $data = NULL;
+  if ($book_data) {
+    while ($row = $statement->fetch(\PDO::FETCH_ASSOC)) {
+      if (isset($row["id"])) {
+        $id = $row["id"];
+        foreach ($row as $key => $value) {
+	        if ($data == NULL)
+	          $data = array();
+          
+	        $data[$id][$key] = $value;
+        }
+      }
+    }
+  }
+  
+  return $data;
 }
 
 # Looks in a target directory $dir to build a list of possible likely
@@ -280,15 +330,23 @@ function escape_str($str) {
 # Get criteria, what are we doing?
 $search = "";
 $title_suffix = "";
+$search_string = "";
 if (isset($_GET["search"])) {
   if ($_GET["search"] == 'NO_REALLY_ALL_BOOKS') {
     $search = '.*';
     $title_suffix = "All Books";
+    $search_string = 'NO_REALLY_ALL_BOOKS';
   }
   else {
     $search = preg_replace('/[^a-z0-9 _\(\)-\.]/i', "", $_GET["search"]);
     $title_suffix = "Search $search";
+    $search_string = $search;
   }
+}
+
+$order = NULL;
+if (isset($_GET["order"])) {
+  $order = preg_replace('/[^a-z0-9_]/i', '', $_GET["order"]);
 }
 
 $tag_dump = false;
@@ -428,7 +486,14 @@ elseif ($author_dump) {
 # likely inefficient but also it does work well enough for a small and
 # light amount of use.
 elseif (strlen($search) > 0) {
-  print "Searching books for '$search'<br /><br /><hr /><br /><br />\n";
+  print "Searching books for '$search'<br />
+  <a href=\"" . $_SERVER["PHP_SELF"] . "?search=$search_string&order=db_date\">Order by DB modification date (newest first)</a><br />
+  <a href=\"" . $_SERVER["PHP_SELF"] . "?search=$search_string&order=pub_date\">Order by publication date (newest first)</a><br />
+  <a href=\"" . $_SERVER["PHP_SELF"] . "?search=$search_string&order=title\">Order by book title</a><br />
+  <a href=\"" . $_SERVER["PHP_SELF"] . "?search=$search_string&order=author\">Order by author</a><br />
+<br /><hr /><br /><br />\n";
+
+
 
   if (! file_exists($library_dir) || ! is_dir($library_dir)) {
     print "Book Library dir '$library_dir' doesn't exist, nothing to search<br />\n";
@@ -438,6 +503,11 @@ elseif (strlen($search) > 0) {
 
   $metadata_files = generate_metadata_file_list($library_dir);
 
+  # Get all the DB metadata for everything because why not
+  $db_meta = book_db_all_meta();
+
+  # Stores data structures of found books for later outputting
+  $found_book_data = array();
   
   # Prepare our search pattern
   $cooked_search = preg_replace('/\(/', '\(', $search);
@@ -458,7 +528,7 @@ elseif (strlen($search) > 0) {
       print "Error file '$file' doesn't exist<br />\n";
       continue;
     }
-
+    
     if (! isset($xml->metadata)) {
       print "Error reading metadata from '$file', skipping<br />\n";
       continue;
@@ -525,7 +595,7 @@ elseif (strlen($search) > 0) {
       }
     }
     
-    # If we found the book dump its metadata
+    
     if ($found && ! $ignore) {
 
       $id = NULL;
@@ -536,96 +606,207 @@ elseif (strlen($search) > 0) {
         }
       }
 
-      print "<table><tr>";
-      
-      $cover_file = get_cover_from_metadata($file);
-      if (file_exists($cover_file) && ! preg_match('/#/', $cover_file)) {
-        print "<td style=\"vertical-align: top;\"><img src=\"$cover_file\" width=\"100px\" height=\"150px\" /></td>";
+      if (isset($id)) {
+        $found_book_data[$id]["id"] = $id;
+        $found_book_data[$id]["file"] = $file;
+        $found_book_data[$id]["tags"] = $tags;
+        $found_book_data[$id]["creators"] = $creators;
+        $found_book_data[$id]["xml"] = $xml;
+        $found_book_data[$id]["meta"] = $db_meta[$id];
       }
-      
-      # Output results
-      print "<td style=\"vertical-align: top;\">";
-      ksort($creators);
-      $creator_links = array();
-      foreach($creators as $author => $mdt) {
-        $link = "<a href=\""
+    }
+  }
+
+  # Sort the results
+  if (isset($order) && $order == "db_date") {
+    # reverse date sorter, so if A > B is -1, if A < B is 1 if you
+    # want to sort with later dates later in the array reverse this
+    # logic.
+    $sorter = function($a, $b) {
+      $ad = strtotime($a["meta"]["last_modified"]);
+      $bd = strtotime($b["meta"]["last_modified"]);
+
+      if ($ad == $bd) {
+        return 0;
+      }
+      elseif ($ad > $bd) {
+        return -1;
+      }
+      elseif ($ad < $bd) {
+        return 1;
+      }
+    };
+
+
+    usort($found_book_data, $sorter);
+  }
+
+  elseif (isset($order) && $order == "pub_date") {
+    # reverse date sorter, so if A > B is -1, if A < B is 1 if you
+    # want to sort with later dates later in the array reverse this
+    # logic.
+    $sorter = function($a, $b) {
+      $ad = strtotime($a["meta"]["pubdate"]);
+      $bd = strtotime($b["meta"]["pubdate"]);
+
+      if ($ad == $bd) {
+        return 0;
+      }
+      elseif ($ad > $bd) {
+        return -1;
+      }
+      elseif ($ad < $bd) {
+        return 1;
+      }
+    };
+
+    usort($found_book_data, $sorter);
+  }
+
+  elseif (isset($order) && $order == "title") {
+    $sorter = function($a, $b) {
+      $a_xml = $a["xml"];
+      $ad = $a_xml->metadata->children('dc', true)->title;
+
+      $b_xml = $b["xml"];
+      $bd = $b_xml->metadata->children('dc', true)->title;
+
+      return strcmp($ad, $bd);
+    };
+
+    usort($found_book_data, $sorter);
+  }
+
+  elseif (isset($order) && $order == "author") {
+    $sorter = function($a, $b) {
+      $ad = strtotime($a["meta"]["author_sort"]);
+      $bd = strtotime($b["meta"]["author_sort"]);
+      return strcmp($ad, $bd);
+    };
+
+    usort($found_book_data, $sorter);
+  }
+  
+  else {
+    # Just output by ID and do nothing to sort
+  }
+
+  # Output the results
+  foreach ($found_book_data as $fb) {
+
+    $id = $fb["id"];
+    $file = $fb["file"];
+    $tags = $fb["tags"];
+    $creators = $fb["creators"];
+    $xml = $fb["xml"];
+    $meta = $fb["meta"];
+    
+    print "<table><tr>";
+    
+    $cover_file = get_cover_from_metadata($file);
+    if (isset($cover_file) && file_exists($cover_file) && ! preg_match('/#/', $cover_file)) {
+      print "<td style=\"vertical-align: top;\"><img src=\"$cover_file\" width=\"100px\" height=\"150px\" /></td>";
+    }
+    
+    # Output results
+    print "<td style=\"vertical-align: top;\">";
+    ksort($creators);
+    $creator_links = array();
+    foreach($creators as $author => $mdt) {
+      $link = "<a href=\""
             . $_SERVER["PHP_SELF"]
             . "?search="
             . # escape_str($xml->metadata->children('dc', true)->creator)
               escape_str($author)
             . "\">"
             . $author
-              . "</a>";
-        array_push($creator_links, $link);
-      }
-      if (count($creator_links) == 1) {
-        print "Author: " . $creator_links[0] . "<br />\n";
-      }
-      else {
-        print "Authors: " . implode(", ", $creator_links) . "<br />\n";
-      }
-
-      print "Title: " . $xml->metadata->children('dc', true)->title . "<br />\n";
-      print "Date: " . $xml->metadata->children('dc', true)->date. "<br />\n";
-
-      if ($xml->metadata->children('dc', true)->description) {
-	      print "Description: " . $xml->metadata->children('dc', true)->description . "<br />\n";
-      }
-
-      $tag_links = array();
-      foreach ($tags as $key => $value) {
-        array_push($tag_links, "<a href=\"" . $_SERVER["PHP_SELF"] . "?search=$key\">$key</a>");
-      }
-      
-      print "Tags: " . join(", ", $tag_links) . "<br />\n";
-
-
-      # Show book files for download
-      $all_books = find_books_in_dir(book_id_to_dir($id), FALSE);
-      if (is_array($all_books)) {
-        foreach ($all_books as $book) {
-          $ext = pathinfo($book, PATHINFO_EXTENSION);
-          print "Download <a href=\"$book\">$ext</a><br />\n";
-        }
-      }
-
-      # Check for an epub for offering reading online
-      $bookfile = get_epub_from_metadata($file);
-
-      if (file_exists($bookfile)) {
-        $output_path = ebook_to_html_file($bookfile);
-	      if (file_exists($output_path)) {
-          
-	        # Check for newness
-	        $original_mtime = filemtime($bookfile);
-	        $online_mtime = filemtime($output_path);
-          
-	        if ($original_mtime > $online_mtime) {
-	          print "<br />Book file has been updated, click to refresh it, or keep reading the old copy.<br />";
-	          print "<br /><a href=\"" . $_SERVER["PHP_SELF"] . "?convert_book=$id\">Refresh book for online reading</a><br />";
-	        }
-          
-          # print "bookfile: '$bookfile'<br />";
-          # print "output_path '$output_path'<br />\n";
-          print "<br /><a href=\"$output_path\">Read: $output_path</a><br />\n";
-        }
-        else {
-          print "<br /><a href=\"" . $_SERVER["PHP_SELF"] . "?convert_book=$id\">Convert book for online reading</a><br />";
-        }
-      }
-      else {
-        $pdf_file = get_bookfile_from_metadata($file, 'pdf');
-        if (file_exists($pdf_file)) {
-          print "<br /><a href=\"$pdf_file\">Read PDF Version '$pdf_file' online</a><br />\n";
-        }
-      }
-
-      print "</td></tr></table>\n";
-
-      # End of found entry
-      print "<br /><hr /><br />";
-      
+            . "</a>";
+      array_push($creator_links, $link);
     }
+    if (count($creator_links) == 1) {
+      print "Author: " . $creator_links[0] . "<br />\n";
+    }
+    else {
+      print "Authors: " . implode(", ", $creator_links) . "<br />\n";
+    }
+    
+    print "Title: " . $xml->metadata->children('dc', true)->title . "<br />\n";
+    if (isset($meta["pubdate"])) {
+      print "Publication Date: " . $meta["pubdate"] . "<br />";
+    }
+    else {
+      print "Publication Date: " . $xml->metadata->children('dc', true)->date . "<br />\n";
+    }
+    
+    if (isset($meta["series_index"]))
+      print "Series Index: " . $meta["series_index"] . "<br />";
+    
+    if (isset($meta["last_modified"]))
+      print "DB Modification Time: " . $meta["last_modified"] . "<br />";
+    
+    
+    
+    
+    if ($xml->metadata->children('dc', true)->description) {
+	    print "Description: " . $xml->metadata->children('dc', true)->description . "<br />\n";
+    }
+    
+    $tag_links = array();
+    foreach ($tags as $key => $value) {
+      array_push($tag_links, "<a href=\"" . $_SERVER["PHP_SELF"] . "?search=$key\">$key</a>");
+    }
+    
+    print "Tags: " . join(", ", $tag_links) . "<br />\n";
+    
+    
+    
+    # Show book files for download
+    $all_books = find_books_in_dir(book_id_to_dir($id), FALSE);
+    if (is_array($all_books)) {
+      foreach ($all_books as $book) {
+        $ext = pathinfo($book, PATHINFO_EXTENSION);
+        print "Download <a href=\"$book\">$ext</a><br />\n";
+      }
+    }
+    
+    # Check for an epub for offering reading online
+    $bookfile = get_epub_from_metadata($file);
+    
+    if (isset($bookfile) && file_exists($bookfile)) {
+      $output_path = ebook_to_html_file($bookfile);
+	    if (file_exists($output_path)) {
+        
+	      # Check for newness
+	      $original_mtime = filemtime($bookfile);
+	      $online_mtime = filemtime($output_path);
+        
+	      if ($original_mtime > $online_mtime) {
+	        print "<br />Book file has been updated, click to refresh it, or keep reading the old copy.<br />";
+	        print "<br /><a href=\"" . $_SERVER["PHP_SELF"] . "?convert_book=$id\">Refresh book for online reading</a><br />";
+	      }
+        
+        # print "bookfile: '$bookfile'<br />";
+        # print "output_path '$output_path'<br />\n";
+        print "<br /><a href=\"$output_path\">Read: $output_path</a><br />\n";
+      }
+      else {
+        print "<br /><a href=\"" . $_SERVER["PHP_SELF"] . "?convert_book=$id\">Convert book for online reading</a><br />";
+      }
+    }
+    else {
+      $pdf_file = get_bookfile_from_metadata($file, 'pdf');
+      if (isset($pdf_file) && file_exists($pdf_file)) {
+        print "<br /><a href=\"$pdf_file\">Read PDF Version '$pdf_file' online</a><br />\n";
+      }
+    }
+    
+    print "</td></tr></table>\n";
+    
+    # End of found entry
+    print "<br /><hr /><br />";
+    
+  }
+
     /* else {
      *   print "<pre>";
      *   print "NOT FOUND<br />";
@@ -634,7 +815,6 @@ elseif (strlen($search) > 0) {
      *   print "</pre>";
      * }
      */
-  }
 
   print "<br /><br /><hr /></br /><br />\n";
 
