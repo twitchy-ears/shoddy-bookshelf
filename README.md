@@ -13,7 +13,7 @@ docker containers for them.
 
 This was unacceptably heavy and also felt like work, so instead I did
 a bit of fiddling around with pandoc to work out a good way of
-converting an epub to HTML and wrote about ~~600~~ 849 lines of shoddy PHP for
+converting an epub to HTML and wrote about ~~600~~ ~~849~~ 897 lines of shoddy PHP for
 fun to make something that was good enough and you could just drop
 into place mostly.
 
