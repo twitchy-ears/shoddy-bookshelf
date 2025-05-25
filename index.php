@@ -120,7 +120,7 @@ function generate_metadata_file_list($target) {
             # print_r($symdata);
             # print "</pre>";
             
-            if (! is_link($new_path)) {
+            if (isset($symdata[1]) && ! is_link($symdata[1])) {
               symlink($symdata[0], $symdata[1]);
             }
             $book_dirpath = $symdata[1];
