@@ -745,6 +745,7 @@ elseif (strlen($search) > 0) {
     $tags = $fb["tags"];
     $creators = $fb["creators"];
     $xml = $fb["xml"];
+    $xml_meta = $xml->metadata->meta;
     $meta = $fb["meta"];
     
     print "<table><tr>";
@@ -785,15 +786,27 @@ elseif (strlen($search) > 0) {
     else {
       print "Publication Date: " . $xml->metadata->children('dc', true)->date . "<br />\n";
     }
-    
-    if (isset($meta["series_index"]))
-      print "Series Index: " . $meta["series_index"] . "<br />";
+
+
+    # Series name is in the XML file for the book
+    # https://www.php.net/manual/en/simplexmlelement.attributes.php#97266
+    $calibre_series = NULL;
+    if ($xml_meta["name"] == "calibre:series") {
+      $calibre_series = $xml_meta["content"];
+    }
+
+    if (isset($calibre_series)) {
+      print "Series Name: " . $calibre_series . "<br />";
+
+      # Series index is in the meta
+      if (isset($meta["series_index"]))
+        print "Series Index: " . $meta["series_index"] . "<br />";
+
+    }
     
     if (isset($meta["last_modified"]))
       print "DB Modification Time: " . $meta["last_modified"] . "<br />";
-    
-    
-    
+
     
     if ($xml->metadata->children('dc', true)->description) {
 	    print "Description: " . $xml->metadata->children('dc', true)->description . "<br />\n";
