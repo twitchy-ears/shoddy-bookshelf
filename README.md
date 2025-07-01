@@ -33,9 +33,11 @@ into place mostly.
 
 7. Check `filter.php` to see if you want to filter any titles, authors, or tags from being visible.
 
-8. Make sure that the `$pandoc_bin` variable points at your pandoc binary (ominous noises intensifies)
+8. Check `custom_fields.php` to see if you want to include any custom fields, such as Page Count and Word Count.
 
-8. Visit the URL you put this in and it should just work.
+9. Make sure that the `$pandoc_bin` variable points at your pandoc binary (ominous noises intensifies)
+
+10. Visit the URL you put this in and it should just work.
 
 ## How to use
 

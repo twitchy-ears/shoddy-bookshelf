@@ -27,6 +27,13 @@ if (file_exists($filter_file)) {
   include_once($filter_file);
 }
 
+# Custom fields, put them in custom_fields.php in the format:
+$custom_fields_file = "custom_fields.php";
+$custom_fields = array();
+if (file_exists($custom_fields_file)) {
+  include_once($custom_fields_file);
+}
+
 # pandoc -f epub -t html -o index.html file.epub --self-contained
 
 # Takes a target metadata.opf file and a wanted extension (like
@@ -177,6 +184,27 @@ function connect_to_db() {
   }
 
   return $pdo;
+}
+
+function fetch_custom_value($id, $table) {
+  $pdo = connect_to_db();
+
+  $table = preg_replace('/[^a-z0-9_-]/', '', $table);
+
+  # print "fetch_custom_value('$id', '$table')<br />\n";
+
+  $statement = $pdo->prepare("SELECT value FROM " . $table . " WHERE book = :id LIMIT 1;");
+  $statement->bindValue(":id", $id);
+
+  $custom_value = $statement->execute();
+
+  while ($row = $statement->fetch(\PDO::FETCH_ASSOC)) {
+    if (isset($row["value"])) {
+      return $row["value"];
+    }
+  }
+
+  return NULL;
 }
 
 # Takes a book id number and fetches the books/ subdirectory associated.
@@ -807,7 +835,20 @@ elseif (strlen($search) > 0) {
     if (isset($meta["last_modified"]))
       print "DB Modification Time: " . $meta["last_modified"] . "<br />";
 
-    
+
+    # Any custom fields get inserted here
+    foreach($custom_fields as $table => $label) {
+      # print "Thinking about fetching '$table' for '$id'<br />\n";
+      if (isset($id) and isset($table) and isset($label)) {
+        $value = fetch_custom_value($id, $table);
+        if (isset($value)) {
+          print "$label: $value<br />\n";
+        }
+      }
+    }
+
+
+    # Insert the description at the end.
     if ($xml->metadata->children('dc', true)->description) {
 	    print "Description: " . $xml->metadata->children('dc', true)->description . "<br />\n";
     }
