@@ -562,6 +562,7 @@ elseif ($author_dump) {
 elseif (strlen($search) > 0) {
   print "Searching books for '$search'<br />
   <a href=\"" . $_SERVER["PHP_SELF"] . "?search=$search_string&order=db_date\">Order by DB modification date (newest first)</a><br />
+  <a href=\"" . $_SERVER["PHP_SELF"] . "?search=$search_string&order=file_mtime\">Order by File modification date (newest first)</a><br />
   <a href=\"" . $_SERVER["PHP_SELF"] . "?search=$search_string&order=pub_date\">Order by publication date (newest first)</a><br />
   <a href=\"" . $_SERVER["PHP_SELF"] . "?search=$search_string&order=title\">Order by book title</a><br />
   <a href=\"" . $_SERVER["PHP_SELF"] . "?search=$search_string&order=author\">Order by author</a><br />
@@ -760,6 +761,55 @@ elseif (strlen($search) > 0) {
 
     usort($found_book_data, $sorter);
   }
+
+  elseif (isset($order) && $order == "file_mtime") {
+    foreach ($found_book_data as $fbd) {
+      $id = $fbd["id"];
+
+      # If we have both continue
+      if (isset($found_book_data[$id]["bookfile"])
+        and isset($found_book_data[$id]["bookfile_mtime"]))
+      {
+        continue;
+      }
+
+      # If we're missing the bookfile then fill it in and also fill
+      # in the mtime
+      if (! isset($found_book_data[$id]["bookfile"])
+        and isset($found_book_data[$id]["file"]))
+      {
+        $bookfile = get_epub_from_metadata($found_book_data[$id]["file"]);
+        if (isset($bookfile) && file_exists($bookfile))
+        {
+          $found_book_data[$id]["bookfile"] = $bookfile;
+          $found_book_data[$id]["bookfile_mtime"] = filemtime($bookfile);
+
+          # echo "$id: '$bookfile' '". $found_book_data[$id]["bookfile_mtime"] . "'<br />\n";
+        }
+      }
+    }
+    
+    $sorter = function($a, $b) {
+      if (isset($a["bookfile_mtime"]))
+        $ad = $a["bookfile_mtime"];
+      else {
+        # echo "no bookfile_mtime for id:" . $a["id"] . " file:" . $a["file"] . "<br />\n";
+        $ad = 0;
+      }
+
+      if (isset($b["bookfile_mtime"]))
+        $bd = $b["bookfile_mtime"];
+      else {
+        # echo "no bookfile_mtime for id:" . $b["id"] . " file:" . $b["file"] . "<br />\n";
+        $bd = 0;
+      }
+
+      
+      return $bd <=> $ad;
+    };
+
+    usort($found_book_data, $sorter);
+  }
   
   else {
     # Just output by ID and do nothing to sort
@@ -872,14 +922,25 @@ elseif (strlen($search) > 0) {
     }
     
     # Check for an epub for offering reading online
-    $bookfile = get_epub_from_metadata($file);
+    if (isset($fb["bookfile"])) {
+      $bookfile = $fb["bookfile"];
+    }
+    else {
+      $bookfile = get_epub_from_metadata($file);
+    }
     
     if (isset($bookfile) && file_exists($bookfile)) {
       $output_path = ebook_to_html_file($bookfile);
 	    if (file_exists($output_path)) {
         
 	      # Check for newness
-	      $original_mtime = filemtime($bookfile);
+        if (isset($fb["bookfile_mtime"])) {
+          $original_mtime = $fb["bookfile_mtime"];
+        }
+        else {
+	        $original_mtime = filemtime($bookfile);
+        }
+
 	      $online_mtime = filemtime($output_path);
         
 	      if ($original_mtime > $online_mtime) {
