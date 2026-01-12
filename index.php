@@ -34,6 +34,39 @@ if (file_exists($custom_fields_file)) {
   include_once($custom_fields_file);
 }
 
+# These are all our buttons and search options
+function generate_search_form_buttons($current_search) {
+  if ($current_search == NULL || strlen($current_search) == 0) {
+    $current_search = "";
+  }
+
+  $form_output = "";
+
+  $form_output .= "<form style=\"display: inline;\" action=\"" . $_SERVER["PHP_SELF"] . "\" method=\"get\">
+  Search metadata: <input type=\"text\" name=\"search\" value=\"$current_search\">
+  <input type=\"submit\" value=\"Search\"></form><br /><br />\n";
+  
+  $form_output .= "<form style=\"display: inline;\" action=\"" . $_SERVER["PHP_SELF"] . "\" method=\"get\">
+  <input type=\"hidden\" name=\"tag_dump\" value=\"tag_dump\">
+  <input type=\"submit\" value=\"List all tags\"></form>";
+
+  $form_output .= " | ";
+  
+  $form_output .=  "<form style=\"display: inline;\" action=\"" . $_SERVER["PHP_SELF"] . "\" method=\"get\">
+  <input type=\"hidden\" name=\"author_dump\" value=\"author_dump\">
+  <input type=\"submit\" value=\"List all authors\"></form>";
+
+  $form_output .= " | ";
+  
+  $form_output .= "<form style=\"display:inline;\" action=\"" . $_SERVER["PHP_SELF"] . "\" method=\"get\">
+  <input type=\"hidden\" name=\"search\" value=\"NO_REALLY_ALL_BOOKS\">
+  <input type=\"submit\" value=\"List all books\"></form>";
+
+  $form_output .= "<br />";
+
+  return $form_output;
+}
+
 # pandoc -f epub -t html -o index.html file.epub --self-contained
 
 # Takes a target metadata.opf file and a wanted extension (like
@@ -560,13 +593,21 @@ elseif ($author_dump) {
 # likely inefficient but also it does work well enough for a small and
 # light amount of use.
 elseif (strlen($search) > 0) {
-  print "Searching books for '$search'<br />
-  <a href=\"" . $_SERVER["PHP_SELF"] . "?search=$search_string&order=db_date\">Order by DB modification date (newest first)</a><br />
-  <a href=\"" . $_SERVER["PHP_SELF"] . "?search=$search_string&order=file_mtime\">Order by File modification date (newest first)</a><br />
-  <a href=\"" . $_SERVER["PHP_SELF"] . "?search=$search_string&order=pub_date\">Order by publication date (newest first)</a><br />
-  <a href=\"" . $_SERVER["PHP_SELF"] . "?search=$search_string&order=title\">Order by book title</a><br />
-  <a href=\"" . $_SERVER["PHP_SELF"] . "?search=$search_string&order=author\">Order by author</a><br />
-<br /><hr /><br /><br />\n";
+  print "Searching books for '$search'<br /><br />
+  Order by: 
+  <a href=\"" . $_SERVER["PHP_SELF"] . "?search=$search_string&order=db_date\">DB modification date (newest first)</a>
+  | 
+  <a href=\"" . $_SERVER["PHP_SELF"] . "?search=$search_string&order=file_mtime\">File modification date (newest first)</a>
+  | 
+  <a href=\"" . $_SERVER["PHP_SELF"] . "?search=$search_string&order=pub_date\">Publication date (newest first)</a>
+  | 
+  <a href=\"" . $_SERVER["PHP_SELF"] . "?search=$search_string&order=title\">Book Title</a>
+  | 
+  <a href=\"" . $_SERVER["PHP_SELF"] . "?search=$search_string&order=author\">Author</a><br /><br />";
+
+  print generate_search_form_buttons($search) . "<br />";
+
+  print "<br /><hr /><br /><br />\n";
 
 
 
@@ -987,23 +1028,8 @@ else {
   $search = "";
 }
 
-# These are all our buttons and search options at the bottom.
-print "<form action=\"" . $_SERVER["PHP_SELF"] . "\" method=\"get\">
-  Search metadata: <input type=\"text\" name=\"search\" value=\"$search\"><br>
-  <input type=\"submit\" value=\"Search\"></form><br />\n";
 
-print "<form action=\"" . $_SERVER["PHP_SELF"] . "\" method=\"get\">
-  <input type=\"hidden\" name=\"tag_dump\" value=\"tag_dump\">
-  <input type=\"submit\" value=\"List all tags\"></form><br />\n";
-
-print "<form action=\"" . $_SERVER["PHP_SELF"] . "\" method=\"get\">
-  <input type=\"hidden\" name=\"author_dump\" value=\"author_dump\">
-  <input type=\"submit\" value=\"List all authors\"></form><br />\n";
-
-print "<form action=\"" . $_SERVER["PHP_SELF"] . "\" method=\"get\">
-  <input type=\"hidden\" name=\"search\" value=\"NO_REALLY_ALL_BOOKS\">
-  <input type=\"submit\" value=\"List all books\"></form><br />\n";
-
+print generate_search_form_buttons($search) . "<br />";
 print "<a href=\"" . $_SERVER["PHP_SELF"] . "\">Return to index</a><br />\n";
 
 
