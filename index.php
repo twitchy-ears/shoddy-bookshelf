@@ -528,7 +528,7 @@ elseif ($tag_dump) {
 
   }
 
-  ksort($tags);
+  ksort($tags, SORT_FLAG_CASE|SORT_NATURAL);
 
   foreach ($tags as $tag => $count) {
     print "Tag: <a href=\"" . $_SERVER["PHP_SELF"] . "?search=$tag\">$tag (count $count)</a><br />\n";
@@ -575,7 +575,7 @@ elseif ($author_dump) {
 	  }
   }
 
-  ksort($authors);
+  ksort($authors, SORT_FLAG_CASE|SORT_NATURAL);
 
   foreach ($authors as $author => $count) {
     print "Author: <a href=\"" . $_SERVER["PHP_SELF"] . "?search=".escape_str($author)."\">$author (count $count)</a><br />\n";
@@ -878,7 +878,7 @@ elseif (strlen($search) > 0) {
     
     # Output results
     print "<td style=\"vertical-align: top;\">";
-    ksort($creators);
+    ksort($creators, SORT_FLAG_CASE|SORT_NATURAL);
     $creator_links = array();
     foreach($creators as $author => $mdt) {
       $link = "<a href=\""
@@ -941,7 +941,8 @@ elseif (strlen($search) > 0) {
 
     # Insert the description at the end.
     if ($xml->metadata->children('dc', true)->description) {
-	    print "Description: " . $xml->metadata->children('dc', true)->description . "<br />\n";
+            print "Description: " . strip_tags($xml->metadata->children('dc', true)->description, '<br><a><p>') . "<br />\n";
+            # print "Description: " . $xml->metadata->children('dc', true)->description . "<br />\n";
     }
     
     $tag_links = array();
