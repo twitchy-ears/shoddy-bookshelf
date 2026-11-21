@@ -66,7 +66,7 @@ If you normally read on an ereader that has Calibre export to it, and also somet
 
 This works by symlinking the file into the `$output_templates_dir` directory.  Every search scans this for broken symlinks or just those > 24 hours old and removes them.
 
-# Filterin
+## Filtering
 
 If you want to filter some books out then check `filter.php`.  Anything in the `$ignore_filters` array for any of its meta data (author name, book title, etc) will get ignored.  Anything with a tag in the `$ignore_tags` array will also get removed silently from search.
 
