@@ -27,7 +27,7 @@ into place mostly.
 
 4. Edit `.htaccess` to give the full path to your `.htpasswd` file for the `AuthUserFile` directive.
 
-5. Make sure the `html` directory is writable by your webserver, so something like `chown www-data:www-data html`
+5. Make sure the `html` and `download` directories are writable by your webserver, so something like `chown www-data:www-data html`
 
 6. Make your `books` directory is looking at a `Calibre Library` directory, symlinking to one is acceptable, the webserver needs to be able to read the files but shouldn't be able to write them.
 
@@ -59,6 +59,20 @@ file you'll see "Book file has been updated, click to refresh it, or
 keep reading the old copy." and a link to "Refresh book for online
 reading", clicking this will essentially delete the HTML file and
 regenerate it, so again may take a little while.
+
+## Consistently named output files
+
+If you normally read on an ereader that has Calibre export to it, and also something where you download the files from shoddy bookshelf, and you want to make sure these filenames match so you can synchronise your reading with KOReader or something, then you want to check the `custom_fields.php` file for the `$output_templates` and `$output_templates_dir` variables, these take some of the keys used by Calibres templating system, specifically title, authors, series, and series_index.
+
+This works by symlinking the file into the `$output_templates_dir` directory.  Every search scans this for broken symlinks or just those > 24 hours old and removes them.
+
+# Filterin
+
+If you want to filter some books out then check `filter.php`.  Anything in the `$ignore_filters` array for any of its meta data (author name, book title, etc) will get ignored.  Anything with a tag in the `$ignore_tags` array will also get removed silently from search.
+
+If you set the `$ignore_no_filter_key` variable to a nice long string you can then set this to part of your URL (append `?no-filter=<your-key-here>` to a query and you'll get an unfiltered view.  This works by setting a PHP Session variable of "ignore_all_filters" for your connection, so switching IP or browser may bust it.
+
+This also likely still leaks data.  This isn't security, remember this is an occasional lunchtime hack.  You shouldn't be relying on this.  This code is bad.  It's done rapidly as an exercise in speed writing nonsense.  Don't trust this.  Hide it carefully.
 
 ## Screenshots
 

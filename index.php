@@ -1,4 +1,5 @@
 <?php 
+session_start();
 
 set_time_limit(300);
 # error_reporting(E_ALL);
@@ -18,6 +19,21 @@ $pandoc_bin = "/usr/bin/pandoc";
 
 $forbidden_bookdir_pattern = '/#/';
 
+# We use session variables to hold things like the no-filter value,
+# this enables someone to destroy the session for testing or whatever.
+if (isset($_GET["logout"]))
+{
+  // Unset all session variables
+  session_unset();
+  
+  // Destroy the session
+  session_destroy();
+  
+  echo "All session variables dropped, you are logged out.<br />\n";
+}
+
+$url_args = array();
+
 # Should include an ignore_filters array of /foo/ patterns which are
 # tested against metadata but not tags.
 $filter_file = "filter.php";
@@ -27,6 +43,33 @@ if (file_exists($filter_file)) {
   include_once($filter_file);
 }
 
+# This block works out if we're ignoring the filters above.
+$ignore_all_filters = false;
+if (isset($ignore_no_filter_key) && strlen($ignore_no_filter_key) > 0) {
+  if (isset($_GET["no-filter"])
+      && strcmp($_GET["no-filter"], $ignore_no_filter_key) == 0)
+  {
+    echo "Ignoring filters because 'no-filter' set to the key<br />";
+    $ignore_all_filters = true;
+    $_SESSION["ignore_all_filters"] = "yes";
+  }
+}
+
+if (isset($_SESSION["ignore_all_filters"])
+       && strlen($_SESSION["ignore_all_filters"]) > 0)
+{
+  echo "Ignoring filters because 'no-filter' set from session<br />";
+  $ignore_all_filters = true;
+}
+
+# This basically resets them, we also attempt to ignore them below but
+# this should deal with it.
+if ($ignore_all_filters == true) {
+  $ignore_filters = array();
+  $ignore_tags = array();
+}
+
+
 # Custom fields, put them in custom_fields.php in the format:
 $custom_fields_file = "custom_fields.php";
 $custom_fields = array();
@@ -34,8 +77,29 @@ if (file_exists($custom_fields_file)) {
   include_once($custom_fields_file);
 }
 
+function generate_self_link_url($url_args, $additional) {
+  $all_args = array_merge($url_args, $additional);
+  
+  $first = array_shift($all_args);
+  $rest = implode('&', $all_args);
+  
+  $url = $_SERVER["PHP_SELF"];
+  if (isset($first) && strlen($first) > 0)
+  {
+    $url .= "?$first";
+  }
+  if (isset($rest) && strlen($rest) > 0)
+  {
+    $url .= "&$rest";
+  }
+  
+  return $url;
+}
+
 # These are all our buttons and search options
 function generate_search_form_buttons($current_search) {
+  global $ignore_all_filters;
+  
   if ($current_search == NULL || strlen($current_search) == 0) {
     $current_search = "";
   }
@@ -54,7 +118,8 @@ function generate_search_form_buttons($current_search) {
   
   $form_output .=  "<form style=\"display: inline;\" action=\"" . $_SERVER["PHP_SELF"] . "\" method=\"get\">
   <input type=\"hidden\" name=\"author_dump\" value=\"author_dump\">
-  <input type=\"submit\" value=\"List all authors\"></form>";
+  <input type=\"submit\" value=\"List all authors\">";
+  $form_output .= "</form>";
 
   $form_output .= " | ";
   
@@ -374,7 +439,7 @@ function generate_book($target) {
   }
 
   if (! file_exists($pandoc_bin)) {
-    print "Pandoc binary '$pandoc_bin' doesn't exist, can't convert '$target'<br />\n";
+     print "Pandoc binary '$pandoc_bin' doesn't exist, can't convert '$target'<br />\n";
     return FALSE;
   }
 
@@ -473,6 +538,9 @@ if (isset($_GET["convert_book"])) {
 }
 
 
+
+
+
 # Start the output now we know what we're doing.
 print "<html><head><title>Shoddy Bookshelf $title_suffix</title></head><body>";
 
@@ -517,6 +585,21 @@ elseif ($tag_dump) {
 
     if (is_object($xml->metadata->children('dc', true)->subject)) {
 	    foreach(get_object_vars($xml->metadata->children('dc', true)->subject) as $tag) {
+
+        # Avoid leaking ignored tags in the list all tags view
+        $skip = false;
+        foreach($ignore_tags as $index => $it) {
+          if (preg_match($it, $tag))
+          {
+            $skip = true;
+          }
+        }
+        if ($skip)
+        {
+          continue;
+        }
+        
+        
 	      if (isset($tags[$tag])) {
 	        $tags[$tag] += 1;
 	      }
@@ -593,18 +676,57 @@ elseif ($author_dump) {
 # likely inefficient but also it does work well enough for a small and
 # light amount of use.
 elseif (strlen($search) > 0) {
-  print "Searching books for '$search'<br /><br />
-  Order by: 
-  <a href=\"" . $_SERVER["PHP_SELF"] . "?search=$search_string&order=db_date\">DB modification date (newest first)</a>
-  | 
-  <a href=\"" . $_SERVER["PHP_SELF"] . "?search=$search_string&order=file_mtime\">File modification date (newest first)</a>
-  | 
-  <a href=\"" . $_SERVER["PHP_SELF"] . "?search=$search_string&order=pub_date\">Publication date (newest first)</a>
-  | 
-  <a href=\"" . $_SERVER["PHP_SELF"] . "?search=$search_string&order=title\">Book Title</a>
-  | 
-  <a href=\"" . $_SERVER["PHP_SELF"] . "?search=$search_string&order=author\">Author</a><br /><br />";
 
+  # If we're using output templates quickly clear old links, so anything broken or > 24h old
+  if (isset($output_templates) && isset($output_template_dir) && is_dir($output_template_dir))
+  {
+    $oldest_symlink = time() - (60 * 60 * 24);
+    $contents = scandir($output_template_dir);
+    foreach($contents as $item)
+    {
+      $path = "$output_template_dir/$item";
+
+      # Skip non-symlinks
+      if (! is_link($path)) {
+        continue;
+      }
+
+      # symlink broken
+      if (linkinfo($path) < 0) {
+        unlink($path);
+      }
+
+      $stat = lstat($path);
+      # print_r($stat);
+
+      if ($stat["ctime"] <= $oldest_symlink) {
+        # print "link is too old, removing (" . $stat["ctime"] . " <= $oldest_symlink)<br />";
+        unlink($path);
+      }
+
+      # print "$path<br />";
+    }
+  }
+
+  
+  echo "Searching books for '$search'<br /><br />Order by: \n";
+  
+  echo "<a href=\"" . generate_self_link_url($url_args, [ "search=$search_string", 'order=db_date' ]) . '">DB modification date (newest first)</a>';
+  echo "\n|\n";
+  
+  echo "<a href=\"" . generate_self_link_url($url_args, [ "search=$search_string", 'order=file_mtime' ]) . '">File modification date (newest first)</a>';
+  echo "\n|\n";
+
+  echo "<a href=\"" . generate_self_link_url($url_args, [ "search=$search_string", 'order=pub_date' ]) . '">Publication date (newest first)</a>';
+  echo "\n|\n";
+
+  echo "<a href=\"" . generate_self_link_url($url_args, [ "search=$search_string", 'order=title' ]) . '">Book Title</a>';
+  echo "\n|\n";
+
+  echo "<a href=\"" . generate_self_link_url($url_args, [ "search=$search_string", 'order=author' ]) . '">Author</a>';
+
+  echo "<br />\n";
+  
   print generate_search_form_buttons($search) . "<br />";
 
   print "<br /><hr /><br /><br />\n";
@@ -679,8 +801,9 @@ elseif (strlen($search) > 0) {
         }
       }
     }
+
     
-    # Create and also search the tags array
+    # Create and also search the tags array, this processes ignores locally
     $tags = array();
     if (is_object($xml->metadata->children('dc', true)->subject)) {
 	    foreach(get_object_vars($xml->metadata->children('dc', true)->subject) as $tag)
@@ -689,7 +812,8 @@ elseif (strlen($search) > 0) {
 
         # Look for ignorable things
         foreach($ignore_tags as $index => $it) {
-          if (preg_match($it, $tag)) {
+          if (preg_match($it, $tag))
+          {
             $ignore = TRUE;
           }
         }
@@ -710,8 +834,15 @@ elseif (strlen($search) > 0) {
 	      }
       }
     }
+
+
+    # Override the ignore system if we have the keys
+    if (isset($ignore) && isset($ignore_all_filters) && $ignore_all_filters == true)
+    {
+      $ignore = FALSE;
+    }
     
-    
+    # If found and we aren't ignoring then output    
     if ($found && ! $ignore) {
 
       $id = NULL;
@@ -866,6 +997,8 @@ elseif (strlen($search) > 0) {
     $xml = $fb["xml"];
     $xml_meta = $xml->metadata->meta;
     $meta = $fb["meta"];
+
+    # print(print_r($fb));
     
     print "<table><tr>";
     
@@ -916,6 +1049,7 @@ elseif (strlen($search) > 0) {
 
     if (isset($calibre_series)) {
       print "Series Name: " . $calibre_series . "<br />";
+      $fb["calibre_series"] = strval($calibre_series);
 
       # Series index is in the meta
       if (isset($meta["series_index"]))
@@ -932,7 +1066,30 @@ elseif (strlen($search) > 0) {
       # print "Thinking about fetching '$table' for '$id'<br />\n";
       if (isset($id) and isset($table) and isset($label)) {
         $value = fetch_custom_value($id, $table);
+
         if (isset($value)) {
+
+          # Transform the value somehow
+          if (isset($custom_fields_output)
+              && array_key_exists($table, $custom_fields_output))
+          {
+            $cfo_filter = $custom_fields_output[$table];
+
+            switch($cfo_filter)
+            {
+              case "boolean":
+              if ($value)
+                $value = "true";
+              break;
+
+              case "yesno":
+              if ($value)
+                $value = "yes";
+              break;
+            }
+          }
+
+          # And output what we got
           print "$label: $value<br />\n";
         }
       }
@@ -959,7 +1116,67 @@ elseif (strlen($search) > 0) {
     if (is_array($all_books)) {
       foreach ($all_books as $book) {
         $ext = pathinfo($book, PATHINFO_EXTENSION);
-        print "Download <a href=\"$book\">$ext</a><br />\n";
+
+        # 2026-11-21 we're recreating export filenames, so symlink files into place if there's a template
+        if (isset($output_templates) && is_array($output_templates) && isset($output_templates[$ext])
+            && isset($output_template_dir) && is_dir($output_template_dir))
+        {
+          # Get the value as a template
+          $out_template = $output_templates[$ext];
+          $out_name = $out_template;
+
+          $replacements = array(
+            "title" => $meta["sort"],
+            "authors" => implode(", ", array_keys($creators))
+          );
+
+          if (isset($fb["calibre_series"])) {
+            $replacements["series"] = $fb["calibre_series"];
+          }
+          if (isset($meta["series_index"])) {
+            $replacements["series_index"] = $meta["series_index"];
+          }
+            
+          # print "out_template: '$out_template'<br />";
+          # print(print_r($replacements));
+          # print "<br />";
+          
+          foreach($replacements as $key => $value) {
+            $out_name = str_replace("{" . $key . "}", $value, $out_name);
+          }
+
+          $out_name = $out_name . "." . $ext;
+          $out_path = "$output_template_dir/$out_name";
+          $symlink_file_path  = "../$book";
+          # print "$out_path<br />";
+          # print "$symlink_file_path<br />";
+
+          # Already exists, offer download
+          if (is_link($out_path)) {
+            # print "link exists '$out_path'<br />";
+            # print "goes to: " . readlink($out_path) . "<br />";
+            
+            # Exists but wrong location?  Remove and recreate
+            if (readlink($out_path) != $symlink_file_path) {
+              # print "but its the wrong location: '" . readlink($out_path) . "' so recreating<br />";
+              unlink($out_path);
+              symlink($symlink_file_path, $out_path);
+            }
+            print "Download <a href=\"$out_path\">$ext</a><br />\n";
+          }
+          
+          # Doesn't exist?  Create
+          else {
+            # print "fresh symlink creation: $out_path<br />";
+            symlink($symlink_file_path, $out_path);
+            print "Download <a href=\"$out_path\">$ext</a><br />\n";
+          }
+        }
+
+        # No template?  just offer usefulness
+        else {
+          print "Download <a href=\"$book\">$ext</a><br />\n";
+        }
       }
     }
     
